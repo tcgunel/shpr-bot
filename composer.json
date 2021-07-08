@@ -12,7 +12,8 @@
     "require": {
         "php": "^7.2",
         "illuminate/support": "*",
-        "guzzlehttp/guzzle": "*"
+        "guzzlehttp/guzzle": "*",
+        "campo/random-user-agent": "^1.3"
     },
     "minimum-stability": "stable",
     "autoload": {

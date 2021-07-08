@@ -2,9 +2,8 @@
 
 namespace TCGunel\ShprBot;
 
-use Illuminate\Support\Collection;
+use Campo\UserAgent;
 use Illuminate\Support\Facades\Http;
-use TCGunel\BizimHesapB2b\Models\Responses\Warehouse;
 use TCGunel\ShprBot\Constants\OptionType;
 use TCGunel\ShprBot\Models\Category;
 use TCGunel\ShprBot\Models\Product;
@@ -20,6 +19,8 @@ class ShprBot extends ShprBotClient
     protected $categories;
 
     protected $shop;
+
+    protected $http_client_options = [];
 
     protected $store = [
         "p5q4k4o4l4b4w21446o4s444m4a4k4j4f4j5m4p294n4u5q2o3q5v5o4n3x5x5540634p4j3n526r20616l4i4d484v5o4s516n2l4q5j453o4b4l4u553g2p4g4w5j4",
@@ -41,17 +42,27 @@ class ShprBot extends ShprBotClient
      * @param Http|null http_client
      * @param string $shop
      */
-    public function __construct($http_client, string $shop)
+    public function __construct($http_client, string $shop, $http_client_options = [])
     {
         $this->shop = $shop;
+
+        $this->http_client_options = $http_client_options;
 
         parent::__construct($http_client);
     }
 
-    public function get($url): string
+    public static function randomUserAgent()
+    {
+        return UserAgent::random([
+            "os_type"     => ["Windows", "OS X"],
+            "device_type" => ["Desktop"]
+        ]);
+    }
+
+    public function get($url, $tries = 0, $max_tries = 10): string
     {
         $response = $this->http_client::withHeaders([
-            "User-Agent"                => "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1",
+            "User-Agent"                => self::randomUserAgent(),
             "Pragma"                    => "no-cache",
             "Cache-Control"             => "no-cache",
             "Upgrade-Insecure-Requests" => "1",
@@ -61,9 +72,15 @@ class ShprBot extends ShprBotClient
             "Sec-Fetch-User"            => "?1",
             "Sec-Fetch-Dest"            => "document",
             "Accept-Language"           => "en,en-US;q=0.9,tr;q=0.8,da;q=0.7",
-        ])->get($url);
+        ])->withOptions($this->http_client_options)->get($url);
 
-        if ($response->successful()) {
+        if ($tries < $max_tries && (!$response->successful() || stripos($response->body(), "cloudflare") !== false)) {
+
+            $tries++;
+
+            return self::get($tries, $max_tries);
+
+        } else if ($response->successful()) {
 
             return $response->body();
 
@@ -174,7 +191,7 @@ class ShprBot extends ShprBotClient
 
             $this->findProductsDetails($product);
 
-            sleep(rand(1,2));
+            sleep(rand(1, 2));
         }
     }
 
@@ -276,15 +293,15 @@ class ShprBot extends ShprBotClient
                 if (!empty($matches[2][$k])) {
 
                     $product_variation = new ProductVariation([
-                        "title" => $title,
+                        "title"   => $title,
                         "options" => []
                     ]);
 
                     preg_match_all('/<option value="\d+">(.*?)<\/option>/', $matches[2][$k], $options);
 
-                    if (isset($options[1]) && !empty($options[1])){
+                    if (isset($options[1]) && !empty($options[1])) {
 
-                        foreach ($options[1] as $option){
+                        foreach ($options[1] as $option) {
 
                             $product_variation->options[] = $option;
 
