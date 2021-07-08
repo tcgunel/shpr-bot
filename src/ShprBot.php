@@ -41,8 +41,9 @@ class ShprBot extends ShprBotClient
      * ShprBot constructor.
      * @param Http|null http_client
      * @param string $shop
+     * @param array|null $http_client_options
      */
-    public function __construct($http_client, string $shop, $http_client_options = [])
+    public function __construct($http_client, string $shop, ?array $http_client_options = [])
     {
         $this->shop = $shop;
 
@@ -166,8 +167,9 @@ class ShprBot extends ShprBotClient
     public function findProductsOfCategory(Category $category)
     {
         $response = $this->post(Helper::d($this->api), [
-            "shop"     => $this->shop,
-            "category" => $category->name,
+            "shop"                => $this->shop,
+            "category"            => $category->name,
+            "http_client_options" => $this->http_client_options,
         ]);
 
         $products = collect(json_decode($response, true));
