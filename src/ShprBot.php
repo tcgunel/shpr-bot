@@ -63,7 +63,7 @@ class ShprBot extends ShprBotClient
     /**
      * @throws \Illuminate\Http\Client\RequestException
      */
-    public function get($url, $tries = 0, $max_tries = 10): string
+    public function get(string $url, int $tries = 0, int $max_tries = 10): string
     {
         $tries++;
 
@@ -98,7 +98,7 @@ class ShprBot extends ShprBotClient
 
                 sleep(3);
 
-                return self::get($tries, $max_tries);
+                return self::get($url, $tries, $max_tries);
 
             }
 
