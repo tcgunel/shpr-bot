@@ -60,34 +60,51 @@ class ShprBot extends ShprBotClient
         ]);
     }
 
+    /**
+     * @throws \Illuminate\Http\Client\RequestException
+     */
     public function get($url, $tries = 0, $max_tries = 10): string
     {
-        $response = $this->http_client::withHeaders([
-            "User-Agent"                => self::randomUserAgent(),
-            "Pragma"                    => "no-cache",
-            "Cache-Control"             => "no-cache",
-            "Upgrade-Insecure-Requests" => "1",
-            "Accept"                    => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-            "Sec-Fetch-Site"            => "none",
-            "Sec-Fetch-Mode"            => "navigate",
-            "Sec-Fetch-User"            => "?1",
-            "Sec-Fetch-Dest"            => "document",
-            "Accept-Language"           => "en,en-US;q=0.9,tr;q=0.8,da;q=0.7",
-        ])->withOptions($this->http_client_options)->get($url);
+        $tries++;
 
-        if ($tries < $max_tries && (!$response->successful() || stripos($response->body(), "cloudflare") !== false)) {
+        try {
 
-            $tries++;
+            $response = $this->http_client::withHeaders([
+                "User-Agent"                => self::randomUserAgent(),
+                "Pragma"                    => "no-cache",
+                "Cache-Control"             => "no-cache",
+                "Upgrade-Insecure-Requests" => "1",
+                "Accept"                    => "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
+                "Sec-Fetch-Site"            => "none",
+                "Sec-Fetch-Mode"            => "navigate",
+                "Sec-Fetch-User"            => "?1",
+                "Sec-Fetch-Dest"            => "document",
+                "Accept-Language"           => "en,en-US;q=0.9,tr;q=0.8,da;q=0.7",
+            ])->withOptions($this->http_client_options)->get($url);
 
-            return self::get($tries, $max_tries);
+            $response->throw();
 
-        } else if ($response->successful()) {
+            if ($tries < $max_tries && (!$response->successful() || stripos($response->body(), "cloudflare") !== false)) {
+
+                throw new \Exception("Get request is not successful or contains CloudFlare page.");
+
+            }
 
             return $response->body();
 
-        }
+        } catch (\Illuminate\Http\Client\RequestException | \Exception $exception) {
 
-        return "";
+            if ($tries < $max_tries){
+
+                sleep(3);
+
+                return self::get($tries, $max_tries);
+
+            }
+
+            throw $exception;
+
+        }
     }
 
     public function post($url, $data): string
@@ -167,8 +184,8 @@ class ShprBot extends ShprBotClient
     public function findProductsOfCategory(Category $category)
     {
         $response = $this->post(Helper::d($this->api), array_merge([
-            "shop"                => $this->shop,
-            "category"            => $category->name,
+            "shop"     => $this->shop,
+            "category" => $category->name,
         ], $this->http_client_options));
 
         $products = collect(json_decode($response, true));
