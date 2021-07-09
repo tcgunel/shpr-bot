@@ -92,7 +92,9 @@ class ShprBot extends ShprBotClient
 
     public function post($url, $data): string
     {
-        $response = $this->http_client::asForm()->post($url, $data);
+        $response = $this->http_client::asForm()->post($url, [
+            'form_params' => $data,
+        ]);
 
         if ($response->successful()) {
 
