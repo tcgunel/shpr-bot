@@ -92,9 +92,7 @@ class ShprBot extends ShprBotClient
 
     public function post($url, $data): string
     {
-        $response = $this->http_client::asForm()->post($url, [
-            'form_params' => $data,
-        ]);
+        $response = $this->http_client::asForm()->post($url, $data);
 
         if ($response->successful()) {
 
@@ -168,11 +166,10 @@ class ShprBot extends ShprBotClient
 
     public function findProductsOfCategory(Category $category)
     {
-        $response = $this->post(Helper::d($this->api), [
+        $response = $this->post(Helper::d($this->api), array_merge([
             "shop"                => $this->shop,
             "category"            => $category->name,
-            "http_client_options" => $this->http_client_options,
-        ]);
+        ], $this->http_client_options));
 
         $products = collect(json_decode($response, true));
 
