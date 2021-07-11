@@ -20,6 +20,8 @@ class ShprBot extends ShprBotClient
 
     protected $shop;
 
+    protected $proxy = [];
+
     protected $http_client_options = [];
 
     protected $store = [
@@ -42,12 +44,17 @@ class ShprBot extends ShprBotClient
      * @param Http|null http_client
      * @param string $shop
      * @param array|null $http_client_options
+     * @param array|null $proxy
      */
-    public function __construct($http_client, string $shop, ?array $http_client_options = [])
+    public function __construct($http_client, string $shop, ?array $http_client_options = [], ?array $proxy = [])
     {
         $this->shop = $shop;
 
         $this->http_client_options = $http_client_options;
+
+        $this->proxy = $proxy;
+
+        self::setProxyForHttpClientOptions();
 
         parent::__construct($http_client);
     }
@@ -58,6 +65,27 @@ class ShprBot extends ShprBotClient
             "os_type"     => ["Windows", "OS X"],
             "device_type" => ["Desktop"]
         ]);
+    }
+
+    public function setProxyForHttpClientOptions()
+    {
+
+        if (isset($this->http_client_options["proxy"]) && !empty($this->http_client_options["proxy"])) {
+
+            return;
+
+        }
+
+        if (isset($this->proxy["fast_rotating_proxy_address"]) && !empty($this->proxy["fast_rotating_proxy_address"])) {
+
+            $this->http_client_options["proxy"] = $this->proxy["fast_rotating_proxy_address"];
+
+        } else if (isset($this->proxy["slow_rotating_proxy_address"]) && !empty($this->proxy["slow_rotating_proxy_address"])) {
+
+            $this->http_client_options["proxy"] = $this->proxy["slow_rotating_proxy_address"];
+
+        }
+
     }
 
     /**
@@ -94,7 +122,7 @@ class ShprBot extends ShprBotClient
 
         } catch (\Illuminate\Http\Client\RequestException | \Exception $exception) {
 
-            if ($tries < $max_tries){
+            if ($tries < $max_tries) {
 
                 sleep(3);
 
@@ -107,17 +135,40 @@ class ShprBot extends ShprBotClient
         }
     }
 
-    public function post($url, $data): string
+    /**
+     * @throws \Illuminate\Http\Client\RequestException
+     */
+    public function post($url, $data, int $tries = 0, int $max_tries = 10): string
     {
-        $response = $this->http_client::asForm()->post($url, $data);
+        $tries++;
 
-        if ($response->successful()) {
+        try {
+
+            $response = $this->http_client::asForm()->post($url, $data);
+
+            $response->throw();
+
+            if ($tries < $max_tries && (!$response->successful() || stripos($response->body(), "cloudflare") !== false)) {
+
+                throw new \Exception("Post request is not successful or contains CloudFlare page.");
+
+            }
 
             return $response->body();
 
-        }
+        } catch (\Illuminate\Http\Client\RequestException | \Exception $exception) {
 
-        return "";
+            if ($tries < $max_tries) {
+
+                sleep(3);
+
+                return self::post($url, $data, $tries, $max_tries);
+
+            }
+
+            throw $exception;
+
+        }
     }
 
     public function run()
@@ -183,10 +234,22 @@ class ShprBot extends ShprBotClient
 
     public function findProductsOfCategory(Category $category)
     {
-        $response = $this->post(Helper::d($this->api), array_merge([
+        $data = [
             "shop"     => $this->shop,
             "category" => $category->name,
-        ], $this->http_client_options));
+        ];
+
+        if (isset($this->proxy["slow_rotating_proxy_address"]) && !empty($this->proxy["slow_rotating_proxy_address"])) {
+
+            $data["proxy"] = $this->proxy["slow_rotating_proxy_address"];
+
+        } else if (isset($this->proxy["fast_rotating_proxy_address"]) && !empty($this->proxy["fast_rotating_proxy_address"])) {
+
+            $data["proxy"] = $this->proxy["fast_rotating_proxy_address"];
+
+        }
+
+        $response = $this->post(Helper::d($this->api), $data);
 
         $products = collect(json_decode($response, true));
 
@@ -195,6 +258,7 @@ class ShprBot extends ShprBotClient
 
     public function findProductsForEachCategory()
     {
+
         foreach ($this->getCategories() as $category) {
 
             $this->findProductsOfCategory($category);
@@ -209,7 +273,6 @@ class ShprBot extends ShprBotClient
 
             $this->findProductsDetails($product);
 
-            sleep(rand(1, 2));
         }
     }
 
