@@ -12,8 +12,6 @@ class TestCase extends \Orchestra\Testbench\TestCase
     /** @var ShprBot */
     public $bot;
 
-    public $html_content;
-
     public $http_client;
 
     public function setUp(): void
