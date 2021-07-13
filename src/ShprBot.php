@@ -18,6 +18,8 @@ class ShprBot extends ShprBotClient
 
     protected $http_client_options = [];
 
+    protected $api_key = "";
+
     protected $api = [
         "f4l416k4x523u2v2n4o5l4v5m2w5t5c4b4z344t5n5m2k4t5c4f546y5c4p434l4c416z3h5t5f4q2x5p4",
         "!hGiNT#aQqtr@$&v5N%@ZVLSHSNS^%U9R&J&%xc2",
@@ -29,9 +31,11 @@ class ShprBot extends ShprBotClient
      * @param string $shop
      * @param array|null $http_client_options
      */
-    public function __construct($http_client, string $shop, ?array $http_client_options = [])
+    public function __construct($http_client, string $shop, ?array $http_client_options = [], ?string $api_key = null)
     {
         $this->shop = $shop;
+
+        $this->api_key = $api_key;
 
         $this->http_client_options = $http_client_options;
 
@@ -43,7 +47,9 @@ class ShprBot extends ShprBotClient
      */
     public function post($url, $data)
     {
-        $response = $this->http_client::withOptions([
+        $response = $this->http_client::withHeaders([
+            "x-api-key" => $this->api_key
+        ])->withOptions([
             'debug' => false,
         ])->post($url, $data);
 
