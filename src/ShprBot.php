@@ -49,7 +49,7 @@ class ShprBot extends ShprBotClient
     {
         $response = $this->http_client::withHeaders([
             "x-api-key" => $this->api_key
-        ])->withOptions([
+        ])->timeout(14400)->connectTimeout(14400)->withOptions([
             'debug' => false,
         ])->post($url, $data);
 
